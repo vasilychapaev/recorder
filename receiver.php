@@ -1,5 +1,11 @@
 <?php
 
+// Отключаю вывод ошибок в ответе
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+error_reporting(0);
+header('Content-Type: application/json');
+
 $targetDir = __DIR__ . '/uploads';
 if (!is_dir($targetDir)) {
     mkdir($targetDir, 0777, true);
