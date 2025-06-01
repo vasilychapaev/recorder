@@ -1,10 +1,21 @@
 <?php
 
-// Отключаю вывод ошибок в ответе
-ini_set('display_errors', 0);
-ini_set('display_startup_errors', 0);
-error_reporting(0);
+// Временно включаю вывод ошибок для отладки
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 header('Content-Type: application/json');
+// Лог ошибок
+set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+    file_put_contents(__DIR__ . '/uploads/php_error.log', "[$errno] $errstr in $errfile:$errline\n", FILE_APPEND);
+    return false;
+});
+set_exception_handler(function ($e) {
+    file_put_contents(__DIR__ . '/uploads/php_error.log', "[EXCEPTION] {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}\n", FILE_APPEND);
+    http_response_code(500);
+    echo json_encode(['success' => false,'error' => 'EXCEPTION: '.$e->getMessage()]);
+    exit;
+});
 
 $targetDir = __DIR__ . '/uploads';
 if (!is_dir($targetDir)) {
@@ -156,4 +167,8 @@ if (isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
 $response['files'] = getFileList($targetDir);
 // Лог пишем только если был Deepgram (см. выше)
 
-echo json_encode($response);
+// Гарантируем, что всегда будет JSON-ответ
+if (!headers_sent()) {
+    echo json_encode($response);
+    exit;
+}
