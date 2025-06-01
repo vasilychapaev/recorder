@@ -1,0 +1,11 @@
+services:
+  php:
+    image: php:8.2-apache
+    container_name: stt3-php
+    ports:
+      - "8005:80"
+    volumes:
+      - ./uploads:/var/www/html/uploads
+      - ./:/var/www/html
+    environment:
+      - APACHE_DOCUMENT_ROOT=/var/www/html

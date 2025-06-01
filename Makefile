@@ -3,3 +3,12 @@
 web2:
 	php -S localhost:8004 & \
 	sleep 1 && open http://localhost:8004/recorder.html
+
+up:
+	docker-compose up -d
+
+down:
+	docker-compose down
+
+build:
+	docker-compose build --no-cache
