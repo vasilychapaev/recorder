@@ -59,7 +59,7 @@ if (isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
     if (move_uploaded_file($fileTmpPath, $destination)) {
         // Deepgram: если нужный формат, отправляем на распознавание
         $ext = strtolower($extension);
-        if (in_array($ext, ['webm', 'm4a', 'wav'])) {
+        if (in_array($ext, ['webm', 'mp4', 'wav'])) {
             $lang = isset($_POST['lang']) ? $_POST['lang'] : 'en';
             $deepgramApiKey = 'e43a7ffd67ef05aa2d6565a68baf93ec0773d670';
             $deepgramUrl = 'https://api.deepgram.com/v1/listen?smart_format=true&punctuate=true&paragraphs=true&utterances=true&model=nova-2&language=' . $lang;
@@ -70,7 +70,7 @@ if (isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Authorization: Token ' . $deepgramApiKey,
-                'Content-Type: audio/' . ($ext === 'webm' ? 'webm' : ($ext === 'm4a' ? 'mp4' : 'wav'))
+                'Content-Type: audio/' . ($ext === 'webm' ? 'webm' : ($ext === 'mp4' ? 'mp4' : 'wav'))
             ]);
             $audioData = file_get_contents($destination);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $audioData);
@@ -82,7 +82,7 @@ if (isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
             $deepgramResult = [
                 'request_headers' => [
                     'Authorization' => 'Token ...',
-                    'Content-Type' => 'audio/' . ($ext === 'webm' ? 'webm' : ($ext === 'm4a' ? 'mp4' : 'wav'))
+                    'Content-Type' => 'audio/' . ($ext === 'webm' ? 'webm' : ($ext === 'mp4' ? 'mp4' : 'wav'))
                 ],
                 'url' => $deepgramUrl,
                 'response_http_code' => $info['http_code'],
