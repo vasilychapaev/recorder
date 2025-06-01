@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Recorder</title>
+  <style>
+    button {
+      font-size: 20px;
+      margin: 10px;
+      padding: 10px 20px;
+    }
+
+    #status {
+      font-size: 18px;
+      margin-top: 20px;
+    }
+
+    #storage ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    #storage li {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <center>
+    <div id="langSelect" style="margin-bottom: 15px; font-size: 16px;">
+      <label><input type="radio" name="lang" value="en-GB" checked> EN</label>
+      <label><input type="radio" name="lang" value="ru"> RU</label>
+      <label><input type="radio" name="lang" value="pl"> PL</label>
+    </div>
+    <button id="recordBtn">Record</button>
+    <button id="pauseBtn" style="display:none">Pause</button>
+    <button id="stopBtn" style="display:none">Stop→Upload</button>
+    <div id="audioType" style="margin-top:10px;font-size:16px;color:#555;"></div>
+    <div id="status">Duration: 0s | Size: 0 KB</div>
+    <div id="storage"></div>
+  </center>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let startTime = 0;
+    let elapsedTime = 0;
+    let timerInterval;
+    let totalSize = 0;
+    let mimeType = 'audio/webm';
+    let fileExt = 'webm';
+
+    // Определяем Safari/iOS
+    function isSafariIOS() {
+      const ua = navigator.userAgent;
+      return (
+        /iP(hone|od|ad)/.test(ua) ||
+        (ua.includes('Safari') && !ua.includes('Chrome') && !ua.includes('Chromium'))
+      );
+    }
+
+    // Выбираем mimeType
+    if (isSafariIOS() && MediaRecorder.isTypeSupported('audio/mp4')) {
+      mimeType = 'audio/mp4';
+      fileExt = 'mp4';
+    } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+      mimeType = 'audio/webm';
+      fileExt = 'webm';
+    } else {
+      mimeType = '';
+      fileExt = 'wav';
+    }
+
+    // Показываем выбранный тип
+    document.getElementById('audioType').textContent = `Тип аудио: ${mimeType || 'audio/wav (fallback)'}`;
+
+    const recordBtn = document.getElementById('recordBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const statusDiv = document.getElementById('status');
+    const storageDiv = document.getElementById('storage');
+
+    function updateTimer() {
+      const currentTime = Date.now();
+      const seconds = Math.floor((elapsedTime + (currentTime - startTime)) / 1000);
+      const sizeKB = Math.round(totalSize / 1024);
+      statusDiv.textContent = `Duration: ${seconds}s | Size: ${sizeKB} KB`;
+    }
+
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 500);
+    }
+
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      elapsedTime += Date.now() - startTime;
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      startTime = 0;
+      elapsedTime = 0;
+      totalSize = 0;
+      statusDiv.textContent = 'Duration: 0s | Size: 0 KB';
+    }
+
+    recordBtn.onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
+      audioChunks = [];
+      resetTimer();
+
+      mediaRecorder.ondataavailable = e => {
+        audioChunks.push(e.data);
+        totalSize += e.data.size;
+      };
+
+      mediaRecorder.onstop = async () => {
+        pauseTimer();
+        const blob = new Blob(audioChunks, { type: mimeType || 'audio/wav' });
+        const formData = new FormData();
+        formData.append('audio', blob, `recorded.${fileExt}`);
+        // Получаем выбранный язык
+        const lang = document.querySelector('input[name="lang"]:checked').value;
+        formData.append('lang', lang);
+
+        await fetch('receiver.php', {
+          method: 'POST',
+          body: formData
+        })
+          .then(response => response.json())
+          .then(data => {
+            const files = data.files;
+            const ul = document.createElement('ul');
+            files.forEach(file => {
+              const li = document.createElement('li');
+              const a = document.createElement('a');
+              a.href = `./uploads/${file}`;
+              a.textContent = file;
+              a.target = '_blank';
+              li.appendChild(a);
+              ul.appendChild(li);
+            });
+            storageDiv.innerHTML = '';
+            storageDiv.appendChild(ul);
+          });
+      };
+
+      mediaRecorder.start();
+      startTimer();
+
+      recordBtn.style.display = 'none';
+      pauseBtn.style.display = 'inline-block';
+      stopBtn.style.display = 'inline-block';
+    };
+
+    pauseBtn.onclick = () => {
+      if (mediaRecorder.state === 'recording') {
+        mediaRecorder.pause();
+        pauseTimer();
+        pauseBtn.textContent = 'Record More';
+      } else {
+        mediaRecorder.resume();
+        startTimer();
+        pauseBtn.textContent = 'Pause';
+      }
+    };
+
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      pauseBtn.style.display = 'none';
+      stopBtn.style.display = 'none';
+      recordBtn.style.display = 'inline-block';
+    };
+
+    // INIT: Получаем список файлов при загрузке страницы
+    window.addEventListener('DOMContentLoaded', async () => {
+      const resp = await fetch('receiver.php');
+      const data = await resp.json();
+      if (data.files) {
+        const ul = document.createElement('ul');
+        data.files.forEach(file => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = `uploads/${file}`;
+          a.textContent = file;
+          a.target = '_blank';
+          li.appendChild(a);
+          ul.appendChild(li);
+        });
+        storageDiv.innerHTML = '';
+        storageDiv.appendChild(ul);
+      }
+    });
+  </script>
+</body>
+
+</html>
