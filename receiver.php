@@ -74,6 +74,8 @@ if (isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
                 $contentType = 'audio/mp4';
             } elseif ($ext === 'wav') {
                 $contentType = 'audio/wav';
+            } elseif ($ext === 'webm') {
+                $contentType = 'video/webm'; // для webm всегда video/webm
             }
 
             $ch = curl_init();
@@ -95,7 +97,8 @@ if (isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
                 'request_headers' => [
                     'Authorization' => 'Token ...',
                     'Content-Type' => $contentType,
-                    'real_mime' => $realMime
+                    'real_mime' => $realMime,
+                    'ext' => $ext
                 ],
                 'url' => $deepgramUrl,
                 'response_http_code' => $info['http_code'],
@@ -131,6 +134,8 @@ if (isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
             $logData['deepgram'] = $deepgramResult;
             $logData['files'] = $response['files'];
             writeLog($logFile, $logData);
+            $response['deepgram_content_type'] = $contentType;
+            $response['deepgram_real_mime'] = $realMime;
         } else {
             $response['success'] = true;
             $response['file'] = $filename;
